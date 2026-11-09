@@ -1,89 +1,59 @@
 package kelas.controller;
 
-import java.io.File;
 import java.io.IOException;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.scene.image.*;
-import javafx.stage.FileChooser;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import kelas.Navigator;
-import kelas.data.DataPembelian;
-import kelas.model.*;
+import kelas.data.DataProduk;
+import kelas.model.Produk;
 
 public class FormController {
+    @FXML private TextField namaField;
+    @FXML private ComboBox<String> kategoriBox;
+    @FXML private TextField hargaField;
+    @FXML private Label pesanLabel;
 
-    @FXML
-    private TextField namaField, jumlahField;
-    @FXML
-    private ComboBox<String> jenisBox;
-    @FXML
-    private Label pesanLabel;
-    @FXML
-    private ImageView gambarView;
     private Navigator navigator;
-    private DataPembelian data;
-    private String gambarUri;
+    private DataProduk data;
 
     @FXML
     private void initialize() {
-        jenisBox.getItems().addAll("Reguler", "Mahasiswa");
-        jenisBox.setValue("Reguler");
+        kategoriBox.getItems().addAll("Makanan", "Minuman");
+        kategoriBox.setValue("Makanan");
     }
 
-    public void setKonteks(Navigator navigator, DataPembelian data) {
+    public void setKonteks(Navigator navigator, DataProduk data) {
         this.navigator = navigator;
         this.data = data;
     }
 
-    @FXML
-    private void pilihGambar() {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Pilih lampiran gambar");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Gambar PNG/JPEG", "*.png", "*.jpg", "*.jpeg"));
-        File file = chooser.showOpenDialog(namaField.getScene().getWindow());
-        if (file == null) {
-            return; // Batal: pertahankan pilihan sebelumnya.
+    private void tampilPesan(String teks, boolean error) {
+        pesanLabel.setText(teks);
+        if (error) {
+            pesanLabel.setStyle("");
+        } else {
+            pesanLabel.setStyle("-fx-text-fill: #15803d;");
         }
-        if (file.length() > 5L * 1024 * 1024) {
-            pesanLabel.setText("Maksimum gambar 5 MB.");
-            return;
-        }
-        Image image = new Image(file.toURI().toString(), 640, 480, true, true);
-        if (image.isError()) {
-            pesanLabel.setText("Gambar tidak dapat dibaca.");
-            return;
-        }
-        gambarUri = file.toURI().toString();
-        gambarView.setImage(image);
-        pesanLabel.setText("Gambar dipilih, belum diunggah ke server.");
     }
 
     @FXML
     private void simpan() {
-        Pembelian p;
         try {
-            int jumlah = Integer.parseInt(jumlahField.getText().trim());
-            Tiket tiket;
-
-            if ("Mahasiswa".equals(jenisBox.getValue())) {
-                tiket = new TiketMahasiswa(namaField.getText(), jumlah);
-            } else {
-                tiket = new TiketReguler(namaField.getText(), jumlah);
-            }
-            p = data.tambah(tiket, gambarUri);
+            long harga = Long.parseLong(hargaField.getText().trim());
+            Produk p = data.tambah(namaField.getText(),
+                    kategoriBox.getValue(), harga);
+            tampilPesan("Produk " + p.getKode() + " (" + p.getNama()
+                    + ") berhasil ditambahkan.", false);
+            namaField.clear();
+            hargaField.clear();
+            kategoriBox.setValue("Makanan");
+            namaField.requestFocus();
         } catch (NumberFormatException e) {
-            pesanLabel.setText("Jumlah harus bilangan bulat dalam rentang int positif.");
-            return;
+            tampilPesan("Harga harus berupa angka bulat tanpa titik/koma.", true);
         } catch (IllegalArgumentException e) {
-            pesanLabel.setText(e.getMessage());
-            return;
-        }
-        try {
-            navigator.bukaDetail(p);
-        } catch (IOException e) {
-            data.hapus(p);
-            pesanLabel.setText("Halaman detail gagal dibuka; data dibatalkan. Periksa FXML.");
-            e.printStackTrace();
+            tampilPesan(e.getMessage(), true);
         }
     }
 
@@ -92,7 +62,7 @@ public class FormController {
         try {
             navigator.bukaDaftar();
         } catch (IOException e) {
-            pesanLabel.setText("Gagal membuka daftar.");
+            tampilPesan("Daftar gagal dibuka.", true);
             e.printStackTrace();
         }
     }
